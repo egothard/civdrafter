@@ -1,0 +1,132 @@
+
+DECLARE @civs int = 3;
+DECLARE @players int = 8;
+DECLARE @banlist varchar(8000) = 'Seondok (Korea),Frederick Barbarossa (Germany),Simon Bolivar (Gran Colombia)'
+
+DROP TABLE IF EXISTS #leaders;
+CREATE TABLE #leaders (leadername varchar(100), randnum float)
+
+/*Insert all available leaders and assign random value*/
+INSERT INTO #leaders VALUES ('Alexander (Macedonia)',RAND())
+INSERT INTO #leaders VALUES ('Amanitore (Nubia)',RAND())
+INSERT INTO #leaders VALUES ('Magnificent Catherine de Medici (France)',RAND())
+INSERT INTO #leaders VALUES ('Black Queen Catherine de Medici (France)',RAND())
+INSERT INTO #leaders VALUES ('Chandragupta (India)',RAND())
+INSERT INTO #leaders VALUES ('Cleopatra (Egypt)',RAND())
+INSERT INTO #leaders VALUES ('Cyrus (Persia)',RAND())
+INSERT INTO #leaders VALUES ('Dido (Phoenicia)',RAND())
+INSERT INTO #leaders VALUES ('Eleanor (England)',RAND())
+INSERT INTO #leaders VALUES ('Eleanor (France)',RAND())
+INSERT INTO #leaders VALUES ('Frederick Barbarossa (Germany)',RAND())
+INSERT INTO #leaders VALUES ('Gandhi (India)',RAND())
+INSERT INTO #leaders VALUES ('Genghis Khan (Mongolia)',RAND())
+INSERT INTO #leaders VALUES ('Gilgamesh (Sumeria)',RAND())
+INSERT INTO #leaders VALUES ('Gitarja (Indonesia)',RAND())
+INSERT INTO #leaders VALUES ('Gorgo (Greece)',RAND())
+INSERT INTO #leaders VALUES ('Harald Hardrada (Norway)',RAND())
+INSERT INTO #leaders VALUES ('Hojo Tokimune (Japan)',RAND())
+INSERT INTO #leaders VALUES ('Jadwiga (Poland)',RAND())
+INSERT INTO #leaders VALUES ('Jayavarman (Khmer)',RAND())
+INSERT INTO #leaders VALUES ('John Curtin (Australia)',RAND())
+INSERT INTO #leaders VALUES ('Kristina (Sweden)',RAND())
+INSERT INTO #leaders VALUES ('Kupe (Maori)',RAND())
+INSERT INTO #leaders VALUES ('Lady Six Sky (Maya)',RAND())
+INSERT INTO #leaders VALUES ('Lautaro (Mapuche)',RAND())
+INSERT INTO #leaders VALUES ('Mansa Munsa (Mali)',RAND())
+INSERT INTO #leaders VALUES ('Matthias Corvinus (Hungary)',RAND())
+INSERT INTO #leaders VALUES ('Menelik (Ethiopia)',RAND())
+INSERT INTO #leaders VALUES ('Montezuma (Aztec)',RAND())
+INSERT INTO #leaders VALUES ('Mvemba a Nzinga (Kongo)',RAND())
+INSERT INTO #leaders VALUES ('Pachacuti (Inca)',RAND())
+INSERT INTO #leaders VALUES ('Pedro (Brazil)',RAND())
+INSERT INTO #leaders VALUES ('Pericles (Greece)',RAND())
+INSERT INTO #leaders VALUES ('Peter (Russia)',RAND())
+INSERT INTO #leaders VALUES ('Phillip (Spain)',RAND())
+INSERT INTO #leaders VALUES ('Poundmaker (Cree)',RAND())
+INSERT INTO #leaders VALUES ('Qin Shi Huang (China)',RAND())
+INSERT INTO #leaders VALUES ('Robert the Bruce (Scotland)',RAND())
+INSERT INTO #leaders VALUES ('Saladin (Arabia)',RAND())
+INSERT INTO #leaders VALUES ('Seondok (Korea)',RAND())
+INSERT INTO #leaders VALUES ('Shaka (Zulu)',RAND())
+INSERT INTO #leaders VALUES ('Simon Bolivar (Gran Colombia)',RAND())
+INSERT INTO #leaders VALUES ('Suleiman (Ottoman Empire)',RAND())
+INSERT INTO #leaders VALUES ('Tamar (Georgia)',RAND())
+INSERT INTO #leaders VALUES ('Rough Rider Teddy Roosevelt (America)',RAND())
+INSERT INTO #leaders VALUES ('Bull Moose Teddy Roosevelt (America)',RAND())
+INSERT INTO #leaders VALUES ('Tomyris (Scythia)',RAND())
+INSERT INTO #leaders VALUES ('Trajan (Rome)',RAND())
+INSERT INTO #leaders VALUES ('Victoria (England)',RAND())
+INSERT INTO #leaders VALUES ('Wilfred Laurier (Canada)',RAND())
+INSERT INTO #leaders VALUES ('Wilhelmina (Netherlands)',RAND())
+
+/*remove banned civs*/
+DELETE l 
+FROM #leaders AS l
+WHERE l.leadername IN (
+						'Seondok (Korea)'
+						,'Frederick Barbarossa (Germany)'
+						,'Simon Bolivar (Gran Colombia)'
+					)
+
+DECLARE @civcount int = 1
+DECLARE @playercount int = 1
+DECLARE @sqlcolumn nvarchar(500) = NULL
+DECLARE @sqlupdate nvarchar(500) = NULL
+DECLARE @choice varchar(50) = NULL
+DECLARE @columnname varchar(50) = NULL
+
+DROP TABLE IF EXISTS #civs
+DROP TABLE IF EXISTS #availablecivs
+
+/*create list of unpicked civs*/
+SELECT leadername, randnum
+INTO #availablecivs 
+FROM #leaders
+
+CREATE TABLE #civs (playernumber int)
+
+/*Create rows*/
+WHILE @playercount <= @players
+	BEGIN
+		INSERT INTO #civs (playernumber) VALUES (@playercount)
+		SET @playercount = @playercount + 1
+	END
+
+/*Create columns*/
+WHILE @civcount <= @civs
+	BEGIN
+		SET @columnname = CONCAT('Civ',@civcount)
+		SET @sqlcolumn = CONCAT('ALTER TABLE #civs ADD ',@columnname,' varchar(50)')
+		EXEC sp_executesql @sqlcolumn
+		SET @civcount = @civcount + 1
+	END
+
+/*loop through to assign civs to each player*/
+SET @playercount = 1
+WHILE (@playercount <= @players)
+	BEGIN
+		SET @civcount = 1
+		WHILE (@civcount <= @civs)
+			BEGIN
+			SET @columnname = CONCAT('Civ',@civcount)
+			/*pick civ to be assigned*/
+			SET @choice = (
+							SELECT TOP 1 leadername
+							FROM #availablecivs
+							ORDER BY randnum
+							)
+			/*remove civ being assigned*/
+			DELETE
+			FROM #availablecivs
+			WHERE leadername = @choice
+			/*insert assigned civ*/
+			SET @choice = CONCAT(CHAR(39),@choice,CHAR(39))
+			SET @sqlupdate = CONCAT('UPDATE #civs SET ',@columnname,' = ',@choice,' WHERE playernumber = ',@playercount)
+			EXEC sp_executesql @sqlupdate
+			SET @civcount = @civcount + 1
+			END
+	SET @playercount = @playercount + 1
+	END
+
+SELECT *
+FROM #civs
